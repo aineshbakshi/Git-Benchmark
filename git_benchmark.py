@@ -4,16 +4,18 @@
 # git_benchmark.py
 #
 # Usage:
-# python git_benchmark.py src_repo dest test_script output_file total_pulls pulls_per_test
+# python git_benchmark.py src_repo dest output_file total_pulls pulls_per_test
+#                test_script script_params         
 #
 # Parameters:
 # src_repo: repository from which the benchmark pulls
 # dest: this is the root of the filesystem to be aged
 #       (generally this filesystem should be freshly initialized -- ie unaged)
-# test_script: script to be performed every pulls_per_test pulls
 # output_file: file to write results to
 # total_pulls: number of pulls before the test stops
 # pulls_per_test: how many pulls inbetween runs of test_script
+# test_script: script to be performed every pulls_per_test pulls
+# script_params: parameters to be passed to the test script
 
 import subprocess
 import shlex
@@ -43,15 +45,16 @@ else:
 parser = argparse.ArgumentParser()
 parser.add_argument("src_repo", help="source repository")
 parser.add_argument("dest", help="destination location to be aged")
-parser.add_argument("test_script", help="test script to be run")
 parser.add_argument("output_file", help="file to which results are written")
 parser.add_argument("total_pulls", help="total number of pulls in the test", type=int)
 parser.add_argument("pulls_per_test", help="run the test_script every this many pulls", type=int)
+parser.add_argument("test_script", help="test script to be run")
+parser.add_argument("script_params", help="parameters to pass to the test_script", nargs=argparse.REMAINDER)
 args = parser.parse_args()
 
 src_repo = os.path.abspath(args.src_repo)
 dest = args.dest
-test_script = args.test_script
+test_script = "{} {}".format(args.test_script, " ".join(args.script_params))
 output_file = open(args.output_file, 'w')
 total_pulls = args.total_pulls
 pulls_per_test = args.pulls_per_test
@@ -95,8 +98,7 @@ for pull in range(0, total_pulls + 1):
 
     # run the test_script
     if pull % pulls_per_test == 0:
-        test_script_cmd = "{} {}".format(test_script, dest_repo)
-        output = subprocess.check_output(shlex.split(test_script_cmd)).strip()
+        output = subprocess.check_output(shlex.split(test_script)).strip()
         output_line = "{} {}\n".format(pull, output)
         output_file.write(output_line)
         sys.stdout.write("\r{}".format(' ' * 80))
