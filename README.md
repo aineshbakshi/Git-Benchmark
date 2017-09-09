@@ -1,5 +1,6 @@
 # Git-Benchmark
-Git benchmark for file system aging
+### Git benchmark for file system aging
+---
 
 ### How it works:
 The benchmarks ages a destination file system by performing git pulls from a source git repository. After a fixed number of pulls, the benchmark runs a provided script.
@@ -11,6 +12,7 @@ The benchmarks ages a destination file system by performing git pulls from a sou
 4. Read results from output.txt
 
 If the file system is mounted at `/mnt/aged` on block device `/dev/sda1`, the unaged version will be created at `/mnt/unaged` on `/dev/sda2`, and we want to perform a grep test every 100 pulls for 10,000 total pulls from a local clone of the linux kernel repository, we run:
+
 `python git_benchmark.py linux /mnt/aged output.txt 10000 100 ./grep.ext4.sh /mnt/aged /dev/sda1 /mnt/unaged /dev/sda2`
 
 ### How to run a different test:
