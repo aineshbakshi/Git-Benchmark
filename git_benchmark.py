@@ -22,7 +22,7 @@ import shlex
 import sys
 import os
 import argparse
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion
 
 ####################
 # globals
@@ -35,7 +35,7 @@ devnull = open(os.devnull, 'w')
 # require git version 2.5+ for uploadpack.allowReachableSHA1InWant
 git_version_cmd = "git --version | awk '{print $3}'"
 git_version = subprocess.check_output(git_version_cmd, shell=True)
-if (StrictVersion(git_version) < StrictVersion('2.5')):
+if (LooseVersion(git_version) < LooseVersion('2.5')):
     print("Git version must be 2.5+, currently {}".format(git_version))
     sys.exit(1)
 else:

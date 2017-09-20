@@ -27,7 +27,7 @@ modprobe zlib
 insmod $MODULE sb_dev=$AGED_BLKDEV sb_fstype=ext4 &>> log.txt
 mount -t ftfs dummy.dev $AGED_PATH -o max=128
 
-AGED="$(time -f "%e" grep -r "t26EdaovJD" $AGED_PATH)"
+AGED="$(TIMEFORMAT='%3R'; time (grep -r "t26EdaovJD" $AGED_PATH) 2>&1)"
 
 # return the aged time
 echo "$AGED"
