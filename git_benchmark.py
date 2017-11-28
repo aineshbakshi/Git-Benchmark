@@ -4,8 +4,7 @@
 # git_benchmark.py
 #
 # Usage:
-# python git_benchmark.py src_repo dest output_file total_pulls pulls_per_test
-#                test_script script_params         
+# python git_benchmark.py src_repo dest output_file total_pulls pulls_per_test        
 #
 # Parameters:
 # src_repo: repository from which the benchmark pulls
@@ -28,6 +27,7 @@ from distutils.version import LooseVersion
 # globals
 
 devnull = open(os.devnull, 'w')
+dest_blkdev = "/dev/sdb"
 
 ####################
 # initialization
@@ -54,17 +54,16 @@ args = parser.parse_args()
 
 src_repo = os.path.abspath(args.src_repo)
 dest = args.dest
-test_script = "{} {}".format(args.test_script, " ".join(args.script_params))
 output_file = open(args.output_file, 'w')
 total_pulls = args.total_pulls
 pulls_per_test = args.pulls_per_test
 
 # prep output_file
-output_file.write("pulls output\n")
+output_file.write("clone pulls output\n")
 
 # prep dest repo
-repo_name = os.path.basename(os.path.normpath(src_repo))
-dest_repo = os.path.abspath("{}/{}".format(dest, repo_name))
+base_dest = os.path.abspath(dest)
+dest_repo = os.path.abspath("{}/0".format(dest))
 dest_mkdir_cmd = "mkdir -p {}".format(dest_repo)
 git_init_cmd = "git init"
 print("Initializing destination repository")
@@ -88,6 +87,9 @@ if (len(rev_list) < total_pulls):
     print("Have {}, test requires {}".format(len(rev_list), total_pulls))
     sys.exit(1)
 
+# specific set up for clones
+number_of_clones = 1
+
 print('--------------------------------------------------------------------------------')
 print('Git-aging {} from local repository {}'.format(dest_repo, src_repo))
 print('Running {} every {} pulls for {} total pulls'.format(test_script, pulls_per_test, total_pulls))
@@ -104,15 +106,27 @@ for pull in range(0, total_pulls + 1):
     sys.stdout.write(progress)
     sys.stdout.flush()
 
-    # perform the next git pull
-    git_pull_cmd = "git pull --no-edit -q -s recursive -X theirs {} {}".format(src_repo, rev_list[pull].strip())
-    subprocess.check_call(shlex.split(git_pull_cmd), cwd = dest_repo, stderr = devnull, stdout = devnull)
+    # perform the next git pull on each clone
+    for clone in range(0, number_of_clones):
+        dest_repo = "{}/{}".format(base_dest, clone)
+        git_pull_cmd = "git pull --no-edit -q -s recursive -X theirs {} {}".format(src_repo, rev_list[pull].strip())
+        subprocess.check_call(shlex.split(git_pull_cmd), cwd = dest_repo, stderr = devnull, stdout = devnull)
 
     # run the test_script
     if pull % pulls_per_test == 0:
-        output = subprocess.check_output(shlex.split(test_script)).strip()
-        output_line = "{} {}\n".format(pull, output)
-        output_file.write(output_line)
+        for clone in range(0, number_of_clones):
+            dest_repo = "{}/{}".format(base_dest, clone)
+            test_script = "./ref_link_btrfs.sh {}".format(dest_repo, dest_blkdev)
+            output = subprocess.check_output(shlex.split(test_script)).strip()
+            output_line = "{} {} {}\n".format(clone, pull, output)
+            output_file.write(output_line)
+
+        for clone in range(0, number_of_clones):
+            orig_repo = "{}/{}".format(base_dest, clone)
+            clone_repo = "{}/{}".format(base_dest, clone + number_of_clones)
+            cp_ref_link_cmd = "cp -r --reflink=ALWAYS {} {}".format(orig_repo, clone_repo)
+            subprocess.check_call(shlex.split(cp_ref_link_cmd))
+        number_of_clones *= 2
         sys.stdout.write("\r{}".format(' ' * 80))
         sys.stdout.write("\r{}".format(output_line))
         sys.stdout.flush()
